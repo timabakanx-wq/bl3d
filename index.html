@@ -151,7 +151,7 @@
                 if (h_now < 0 && t > 0) break; // Снаряд упал
                 if (h_now > h_max_calculated) h_max_calculated = h_now;
 
-                let ar = atmosphere ? (ar0 * Math.exp(-Math.max(0.0, h_now) / 8500.0)) : ar0;
+                                let ar = atmosphere ? (ar0 * Math.exp(-Math.max(0.0, h_now) / 8500.0)) : ar0;
                 let g_curr = g_decay ? (g0 * Math.pow(r_earth / (r_earth + Math.max(0.0, h_now)), 2)) : g0;
 
                 let gx = 0, gy = -g_curr, gz = 0;
@@ -161,7 +161,7 @@
                     gz = -g_curr * (z / dist_center);
                 }
 
-                let v_shell = Math.sqrt(vx*vx + vy*vy + vz*vz);
+                let v_shell = Math.sqrt(vx * vx + vy * vy + vz * vz);
                 if (v_shell === 0) break;
 
                 let ex = vx / v_shell, ey = vy / v_shell, ez = vz / v_shell;
@@ -173,7 +173,7 @@
                 let v_lat_x = v_rel_x - v_longitudinal * ex;
                 let v_lat_y = v_rel_y - v_longitudinal * ey;
                 let v_lat_z = v_rel_z - v_longitudinal * ez;
-                let v_lateral_mag = Math.sqrt(v_lat_x*v_lat_x + v_lat_y*v_lat_y + v_lat_z*v_lat_z);
+                let v_lateral_mag = Math.sqrt(v_lat_x * v_lat_x + v_lat_y * v_lat_y + v_lat_z * v_lat_z);
 
                 let k_long = v_longitudinal >= 0 ? k_forward : k_backward;
                 let Fd_long = 0.5 * k_long * ar * ss * (v_longitudinal * v_longitudinal) * Math.sign(v_longitudinal);
@@ -188,7 +188,7 @@
 
                 let ax = gx - (Fd_long * ex / m) - (Fd_lat_x / m);
                 let ay = gy - (Fd_long * ey / m) - (Fd_lat_y / m);
-                                let az = gz - (Fd_long * ez / m) - (Fd_lat_z / m);
+                let az = gz - (Fd_long * ez / m) - (Fd_lat_z / m);
 
                 vx += ax * dt;
                 vy += ay * dt;
@@ -215,35 +215,30 @@
                 dist_calculated = Math.sqrt(x * x + z * z);
             }
 
-            // Вывод расчетных данных на экран
             document.getElementById('res_dist').innerText = dist_calculated.toFixed(2) + " м";
             document.getElementById('res_hmax').innerText = h_max_calculated.toFixed(2) + " м";
             document.getElementById('res_time').innerText = t.toFixed(4) + " с";
-            document.getElementById('res_coord').innerText = `[${x.toFixed(2)}, ${z.toFixed(2)}]`;
+            document.getElementById('res_coord').innerText = "(" + x.toFixed(2) + "; " + z.toFixed(2) + ")";
 
-            // Построение 3D Графика через Plotly
+            // Задаем массивы через альтернативный синтаксис Array(), чтобы разметка ИИ их не съела
             const traceTrajectory = {
-                x: pathX,
-                y: pathZ,
-                z: pathY,
+                x: pathX, y: pathZ, z: pathY,
                 mode: 'lines',
                 line: { color: '#ef4444', width: 4 },
                 name: 'Траектория полета'
             };
 
             const traceGround = {
-                x: pathX,
-                y: pathZ,
-                z: new Array(pathY.length).fill(0),
+                x: pathX, y: pathZ, z: new Array(pathY.length).fill(0),
                 mode: 'lines',
                 line: { color: '#6b7280', width: 2, dash: 'dash' },
                 name: 'Проекция на землю'
             };
 
             const traceImpact = {
-                x: [x],
-                y: [z],
-                z: [0],
+                x: new Array(x), 
+                y: new Array(z), 
+                z: new Array(0),
                 mode: 'markers',
                 marker: { size: 10, color: '#f97316', symbol: 'x' },
                 name: 'Точка падения'
@@ -266,6 +261,9 @@
             Plotly.newPlot('plot3d', [traceTrajectory, traceGround, traceImpact], layout);
         }
 
-        // Запуск симуляции при открытии страницы
         runSimulation();
+    </script>
+</body>
+</html>
+
 
