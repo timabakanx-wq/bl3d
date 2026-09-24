@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>3D Баллистический Симулятор</title>
+    <!-- Подключаем стили Tailwind для дизайна и Plotly для 3D графики -->
+    <script src="https://tailwindcss.com"></script>
+    <script src="https://plot.ly"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-6">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Панель ввода параметров -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 h-fit">
+            <h1 class="text-xl font-bold mb-4 text-red-500 border-b border-gray-700 pb-2">🚀 НАСТРОЙКИ СИМУЛЯЦИИ</h1>
+            
+            <div class="space-y-4 text-sm">
+                <div>
+                    <label class="block text-gray-400 mb-1">Начальная скорость V (м/с)</label>
+                    <input type="number" id="v" value="1200" class="w-full bg-gray-700 p-2 rounded border border-gray-600 focus:outline-none focus:border-red-500">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-gray-400 mb-1">Угол (град)</label>
+                        <input type="number" id="angle" value="54" class="w-full bg-gray-700 p-2 rounded border border-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 mb-1">Азимут (град)</label>
+                        <input type="number" id="azimut" value="93" class="w-full bg-gray-700 p-2 rounded border border-gray-600">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-gray-400 mb-1">Масса снаряда (кг)</label>
+                        <input type="number" id="mass" value="3000" class="w-full bg-gray-700 p-2 rounded border border-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 mb-1">Калибр (м)</label>
+                        <input type="number" id="caliber" value="0.21" step="0.01" class="w-full bg-gray-700 p-2 rounded border border-gray-600">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-gray-400 mb-1">Коэф. лобового сопротивления (Cx)</label>
+                    <input type="number" id="k_forward" value="0.12" step="0.01" class="w-full bg-gray-700 p-2 rounded border border-gray-600">
+                </div>
+
+                <!-- Флаги физики -->
+                <div class="bg-gray-750 p-3 rounded border border-gray-700 space-y-2">
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" id="g_decay" checked class="text-red-500 rounded">
+                        <span>Уменьшать G с высотой</span>
+                    </label>
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" id="atmosphere" checked class="text-red-500 rounded">
+                        <span>Разреженность атмосферы</span>
+                    </label>
+                    <label class="flex items-center space-x-2">
+                        <input type="checkbox" id="earth_round" checked class="text-red-500 rounded">
+                        <span>Учитывать кривизну Земли</span>
+                    </label>
+                </div>
+
+                <!-- Настройки ветра -->
+                <div>
+                    <label class="block text-gray-400 mb-1">3D Ветер (X, Y, Z в м/с)</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <input type="number" id="wx" value="31" placeholder="X" class="bg-gray-700 p-2 rounded border border-gray-600 text-center">
+                        <input type="number" id="wy" value="-8" placeholder="Y" class="bg-gray-700 p-2 rounded border border-gray-600 text-center">
+                        <input type="number" id="wz" value="29" placeholder="Z" class="bg-gray-700 p-2 rounded border border-gray-600 text-center">
+                    </div>
+                </div>
+
+                <button onclick="runSimulation()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 px-4 rounded-xl transition duration-200 uppercase tracking-wider mt-4">
+                    Рассчитать Траекторию
+                </button>
+            </div>
+        </div>
+
+        <!-- Панель вывода результатов и 3D графика -->
+        <div class="lg:col-span-2 flex flex-col gap-6">
+            <!-- Сводка результатов -->
+            <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div>
+                    <p class="text-xs text-gray-400 uppercase">Дальность полета</p>
+                    <p id="res_dist" class="text-xl font-bold text-green-400">---</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase">Макс. Высота (H_max)</p>
+                    <p id="res_hmax" class="text-xl font-bold text-blue-400">---</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase">Время полета</p>
+                    <p id="res_time" class="text-xl font-bold text-yellow-400">---</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-400 uppercase">Конечная координата</p>
+                    <p id="res_coord" class="text-sm font-mono mt-1 text-purple-400">---</p>
+                </div>
+            </div>
+
+            <!-- Контейнер для 3D графика -->
+            <div class="bg-gray-800 p-4 rounded-xl shadow-lg border border-gray-700 flex-1 min-h-[500px]">
+                <div id="plot3d" class="w-full h-full min-h-[500px]"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function runSimulation() {
+            // Считывание данных
+            const v = parseFloat(document.getElementById('v').value);
+            const a = parseFloat(document.getElementById('angle').value) * Math.PI / 180;
+            const azm = parseFloat(document.getElementById('azimut').value) * Math.PI / 180;
+            const m = parseFloat(document.getElementById('mass').value);
+            const k_forward = parseFloat(document.getElementById('k_forward').value);
+            const kl = parseFloat(document.getElementById('caliber').value);
+            
+            const g_decay = document.getElementById('g_decay').checked;
+            const atmosphere = document.getElementById('atmosphere').checked;
+            const earth_round = document.getElementById('earth_round').checked;
+            
+            const wx = parseFloat(document.getElementById('wx').value);
+            const wy = parseFloat(document.getElementById('wy').value);
+            const wz = parseFloat(document.getElementById('wz').value);
+
+            const g0 = 9.81;
+            const ar0 = 1.225;
+            const r_earth = 6371000.0;
+            const k_lateral = 1.10;
+            const k_backward = 1.12;
+
+            const ss = Math.PI * Math.pow(kl / 2, 2);
+            const s_lateral = kl * (kl * 4.0);
+
+            // Начальные вектора скорости
+            let vx = v * Math.cos(a) * Math.sin(azm);
+            let vz = v * Math.cos(a) * Math.cos(azm);
+            let vy = v * Math.sin(a);
+
+            let x = 0, y = 0, z = 0, t = 0;
+            const dt = 0.05; // шаг интеграции
+
+            let pathX = [x], pathY = [y], pathZ = [z];
+            let h_max_calculated = 0;
+
+            while (t < 10000) {
+                let dist_center = earth_round ? Math.sqrt(x*x + (y + r_earth)*(y + r_earth) + z*z) : 0;
+                let h_now = earth_round ? (dist_center - r_earth) : y;
+
+                if (h_now < 0 && t > 0) break; // Снаряд упал
+                if (h_now > h_max_calculated) h_max_calculated = h_now;
+
+                let ar = atmosphere ? (ar0 * Math.exp(-Math.max(0.0, h_now) / 8500.0)) : ar0;
+                let g_curr = g_decay ? (g0 * Math.pow(r_earth / (r_earth + Math.max(0.0, h_now)), 2)) : g0;
+
+                let gx = 0, gy = -g_curr, gz = 0;
+                if (earth_round) {
+                    gx = -g_curr * (x / dist_center);
+                    gy = -g_curr * ((y + r_earth) / dist_center);
+                    gz = -g_curr * (z / dist_center);
+                }
+
+                let v_shell = Math.sqrt(vx*vx + vy*vy + vz*vz);
+                if (v_shell === 0) break;
+
+                let ex = vx / v_shell, ey = vy / v_shell, ez = vz / v_shell;
+                let v_rel_x = vx - wx;
+                let v_rel_y = vy - wy;
+                let v_rel_z = vz - wz;
+
+                let v_longitudinal = v_rel_x * ex + v_rel_y * ey + v_rel_z * ez;
+                let v_lat_x = v_rel_x - v_longitudinal * ex;
+                let v_lat_y = v_rel_y - v_longitudinal * ey;
+                let v_lat_z = v_rel_z - v_longitudinal * ez;
+                let v_lateral_mag = Math.sqrt(v_lat_x*v_lat_x + v_lat_y*v_lat_y + v_lat_z*v_lat_z);
+
+                let k_long = v_longitudinal >= 0 ? k_forward : k_backward;
+                let Fd_long = 0.5 * k_long * ar * ss * (v_longitudinal * v_longitudinal) * Math.sign(v_longitudinal);
+
+                let Fd_lat_x = 0, Fd_lat_y = 0, Fd_lat_z = 0;
+                if (v_lateral_mag > 0) {
+                    let Fd_lat_total = 0.5 * k_lateral * ar * s_lateral * (v_lateral_mag * v_lateral_mag);
+                    Fd_lat_x = Fd_lat_total * (v_lat_x / v_lateral_mag);
+                    Fd_lat_y = Fd_lat_total * (v_lat_y / v_lateral_mag);
+                    Fd_lat_z = Fd_lat_total * (v_lat_z / v_lateral_mag);
+                }
+
+                let ax = gx - (Fd_long * ex / m) - (Fd_lat_x / m);
+                let ay = gy - (Fd_long * ey / m) - (Fd_lat_y / m);
+                                let az = gz - (Fd_long * ez / m) - (Fd_lat_z / m);
+
+                vx += ax * dt;
+                vy += ay * dt;
+                vz += az * dt;
+
+                x += vx * dt;
+                y += vy * dt;
+                z += vz * dt;
+                t += dt;
+
+                if (Math.round(t / dt) % 4 === 0) {
+                    pathX.push(x);
+                    pathY.push(y);
+                    pathZ.push(z);
+                }
+            }
+
+            let dist_calculated = 0;
+            if (earth_round) {
+                let chord = Math.sqrt(x * x + y * y + z * z);
+                let cos_theta = (2 * r_earth * r_earth - chord * chord) / (2 * r_earth * r_earth);
+                dist_calculated = r_earth * Math.acos(Math.max(-1.0, Math.min(1.0, cos_theta)));
+            } else {
+                dist_calculated = Math.sqrt(x * x + z * z);
+            }
+
+            // Вывод расчетных данных на экран
+            document.getElementById('res_dist').innerText = dist_calculated.toFixed(2) + " м";
+            document.getElementById('res_hmax').innerText = h_max_calculated.toFixed(2) + " м";
+            document.getElementById('res_time').innerText = t.toFixed(4) + " с";
+            document.getElementById('res_coord').innerText = `[${x.toFixed(2)}, ${z.toFixed(2)}]`;
+
+            // Построение 3D Графика через Plotly
+            const traceTrajectory = {
+                x: pathX,
+                y: pathZ,
+                z: pathY,
+                mode: 'lines',
+                line: { color: '#ef4444', width: 4 },
+                name: 'Траектория полета'
+            };
+
+            const traceGround = {
+                x: pathX,
+                y: pathZ,
+                z: new Array(pathY.length).fill(0),
+                mode: 'lines',
+                line: { color: '#6b7280', width: 2, dash: 'dash' },
+                name: 'Проекция на землю'
+            };
+
+            const traceImpact = {
+                x: [x],
+                y: [z],
+                z:,
+                mode: 'markers',
+                marker: { size: 10, color: '#f97316', symbol: 'x' },
+                name: 'Точка падения'
+            };
+
+            const layout = {
+                paper_bgcolor: '#1f2937',
+                plot_bgcolor: '#1f2937',
+                font: { color: '#f3f4f6' },
+                scene: {
+                    xaxis: { title: 'Ось X: Вест <-> Ист (м)', gridcolor: '#374151' },
+                    yaxis: { title: 'Ось Z: Юг <-> Север (м)', gridcolor: '#374151' },
+                    zaxis: { title: 'Высота Y (м)', gridcolor: '#374151' },
+                    aspectmode: 'data'
+                },
+                margin: { l: 0, r: 0, b: 0, t: 30 },
+                legend: { x: 0, y: 1 }
+            };
+
+            Plotly.newPlot('plot3d', [traceTrajectory, traceGround, traceImpact], layout);
+        }
+
+        // Запуск симуляции при открытии страницы
+        runSimulation();
